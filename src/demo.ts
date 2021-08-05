@@ -453,7 +453,7 @@ export class DemoFile extends EventEmitter {
   private _timeoutTimerToken: NodeJS.Timer | null = null;
 
   private originalChunks: Buffer[] = [];
-  private minimumBufferThreshold = 1024 * 1024 * 10; // Work with chunks of 10MB
+  private minimumBufferThreshold = 1024 * 1024 * 1; // Work with chunks of 1MB
   private bufferSizeSinceLastReplace = 0;
   private parsingStreamInitiated = false;
   private parsingStreamCompleted = false;
@@ -495,10 +495,8 @@ export class DemoFile extends EventEmitter {
   }
 
   public parseStream(stream: Readable) {
-    stream.on("data", (chunk: Buffer) => {
-      this.originalChunks.push(chunk);
-      this.bufferSizeSinceLastReplace += chunk.byteLength;
-
+    // draining the buffer
+    let i = setInterval(() => {
       // Replacing buffer is expensive, so we only do it every X MB of the buffer
       // AND only when the parser has reached the end of the current buffer
       if (
@@ -507,7 +505,9 @@ export class DemoFile extends EventEmitter {
         this.bufferSizeSinceLastReplace >= this.minimumBufferThreshold
       ) {
         this.replaceBuffer(Buffer.concat(this.originalChunks));
+
         this.bufferSizeSinceLastReplace = 0;
+        this.isParsingPaused = false;
       }
 
       // Waiting for enough data to START
@@ -518,14 +518,23 @@ export class DemoFile extends EventEmitter {
         this.parsingStreamInitiated = true;
 
         this.bufferSizeSinceLastReplace = 0;
+        this.isParsingPaused = false;
 
         this.parse(Buffer.concat(this.originalChunks));
       }
+    }, 100);
+
+    stream.on("data", (chunk: Buffer) => {
+      this.originalChunks.push(chunk);
+      this.bufferSizeSinceLastReplace += chunk.byteLength;
     });
 
     stream.on("end", () => {
+      clearInterval(i);
+
       // Replacing any leftover buffer
       if (this.bufferSizeSinceLastReplace > 0) {
+        this.isParsingPaused = false;
         this.replaceBuffer(Buffer.concat(this.originalChunks));
         this.bufferSizeSinceLastReplace = 0;
 
@@ -754,11 +763,13 @@ export class DemoFile extends EventEmitter {
     this._recurse();
 
     try {
+      if (this.isParsingPaused) return;
+
       // Checking for some arbitrary buffer remainder to make sure parsing does not continue with incomplete data when there's more to come
       if (
         this.parsingStreamInitiated &&
         !this.parsingStreamCompleted &&
-        this.bufferSizeSinceLastReplace < this.minimumBufferThreshold
+        this._bytebuf.limit - this._bytebuf.offset > this.minimumBufferThreshold
       ) {
         this.isParsingPaused = true;
         // @TODO Cancel timeouts instead?
