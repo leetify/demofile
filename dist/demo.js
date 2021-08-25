@@ -394,7 +394,7 @@ class DemoFile extends events_1.EventEmitter {
             // Checking for some arbitrary buffer remainder to make sure parsing does not continue with incomplete data when there's more to come
             if (this.parsingStreamInitiated &&
                 !this.parsingStreamCompleted &&
-                this._bytebuf.limit - this._bytebuf.offset > this.minimumBufferThreshold) {
+                this._bytebuf.limit - this._bytebuf.offset < this.minimumBufferThreshold) {
                 this.isParsingPaused = true;
                 // @TODO Cancel timeouts instead?
                 return;

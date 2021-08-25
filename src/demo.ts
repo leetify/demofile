@@ -769,7 +769,7 @@ export class DemoFile extends EventEmitter {
       if (
         this.parsingStreamInitiated &&
         !this.parsingStreamCompleted &&
-        this._bytebuf.limit - this._bytebuf.offset > this.minimumBufferThreshold
+        this._bytebuf.limit - this._bytebuf.offset < this.minimumBufferThreshold
       ) {
         this.isParsingPaused = true;
         // @TODO Cancel timeouts instead?
