@@ -584,6 +584,10 @@ export class DemoFile extends EventEmitter {
   }
 
   private replaceBuffer(buffer: Buffer) {
+    if (!this._bytebuf) {
+      this._bytebuf = ByteBuffer.wrap(buffer.slice(1072), true);
+    }
+
     const lastOffset = this._bytebuf.offset;
     this._bytebuf = ByteBuffer.wrap(buffer.slice(1072), true);
     this._bytebuf.offset = lastOffset;
